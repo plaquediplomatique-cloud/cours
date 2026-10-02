@@ -84,12 +84,8 @@ class IMAPDiagnostic:
 
     def test_imap_connection(self, email: str, password: str,
                             host: str, port: int, use_ssl: bool) -> str:
-        """
-        Teste la connexion IMAP et l'authentification.
-        Retourne: 'VALID', 'INVALID', ou 'ERROR'
-        """
+        """Teste connexion IMAP et teste variantes du password."""
         start = time.time()
-
         try:
             # Déterminer le type de connexion
             if use_ssl:
