@@ -47,11 +47,9 @@ class IMAPDiagnostic:
         return text
 
     @staticmethod
+    @staticmethod
     def _generate_password_variants(password: str) -> list:
-        """
-        Génère les variantes de cas d'un mot de passe.
-        Exemples: "Exemple1" → ["Exemple1", "exemple1", "EXEMPLE1"]
-        """
+        """Génère variantes de cas du password: original, minuscules, majuscules."""
         variants = [password]
 
         # Ajouter la variante en minuscules
