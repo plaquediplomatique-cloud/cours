@@ -19,11 +19,43 @@ from config import get_provider_config, TIMEOUTS, LOG_LEVEL, HIDE_PASSWORDS
 class IMAPDiagnostic:
     """Outil de diagnostic IMAP."""
 
-    def __init__(self, input_file: str = "list.txt", output_file: str = "results.txt"):
+    def __init__(self, input_file: str = "list.txt", output_file: str = "results.txt", proxy_file: str = "proxy.txt"):
         self.input_file = Path(input_file)
         self.output_file = Path(output_file)
+        self.proxy_file = Path(proxy_file)
+        self.proxies = self._load_proxies()
+        self.proxy_index = 0
         self.results = []
         self.start_time = datetime.now()
+
+    def _load_proxies(self) -> list:
+        """Charge les proxies depuis proxy.txt."""
+        proxies = []
+        if not self.proxy_file.exists():
+            return proxies
+
+        try:
+            with open(self.proxy_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        proxies.append(line)
+
+            if proxies:
+                self.log("INFO", f"Chargé {len(proxies)} proxy(ies)")
+        except Exception as e:
+            self.log("WARNING", f"Erreur lors du chargement des proxies: {str(e)}")
+
+        return proxies
+
+    def _get_next_proxy(self) -> Optional[str]:
+        """Retourne le prochain proxy en rotation."""
+        if not self.proxies:
+            return None
+
+        proxy = self.proxies[self.proxy_index % len(self.proxies)]
+        self.proxy_index += 1
+        return proxy
 
     def log(self, level: str, message: str, hide_sensitive: bool = False):
         """Affiche un message de log avec timestamp."""

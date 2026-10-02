@@ -1,0 +1,6 @@
+# Format: proxy_host:proxy_port
+# Ajouter vos proxies ici (un par ligne)
+# Exemples:
+# 192.168.1.1:8080
+# proxy.example.com:3128
+# Laisser vide pour désactiver les proxies
