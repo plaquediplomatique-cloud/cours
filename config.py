@@ -1,329 +1,50 @@
 """
-Configuration centralisée des fournisseurs de messagerie et leurs serveurs IMAP.
-Structure: domaine -> {serveur, port, ssl, authentification}
+Configuration SMTP pour les fournisseurs de messagerie.
 """
 
 PROVIDERS = {
-    # === FOURNISSEURS SUISSES ===
-
-    # Bluewin (groupe Sunrise/UPC)
-    "bluewin.ch": {
-        "imap_host": "imap.bluewin.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Bluewin (Suisse)"
-    },
-
-    # Sunrise
-    "sunrise.ch": {
-        "imap_host": "imap.sunrise.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Sunrise Communications (Suisse)"
-    },
-
-    # Hotmail/Outlook suisse (.ch)
-    "hotmail.com": {
-        "imap_host": "outlook.office365.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Microsoft Outlook/Hotmail"
-    },
-
-    "outlook.com": {
-        "imap_host": "outlook.office365.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Microsoft Outlook"
-    },
-
-    "outlook.ch": {
-        "imap_host": "outlook.office365.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Microsoft Outlook Suisse"
-    },
-
-    # Gmail / Google Workspace
-    "gmail.com": {
-        "imap_host": "imap.gmail.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Gmail (nécessite app password ou 2FA)"
-    },
-
-    "googlemail.com": {
-        "imap_host": "imap.gmail.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "GoogleMail"
-    },
-
-    # ProtonMail (officiel IMAP via ProtonMail Bridge requis)
-    "protonmail.com": {
-        "imap_host": "127.0.0.1",
-        "imap_port": 1143,
-        "use_ssl": False,
-        "auth_method": "plain",
-        "description": "ProtonMail (nécessite ProtonMail Bridge)"
-    },
-
-    "proton.me": {
-        "imap_host": "127.0.0.1",
-        "imap_port": 1143,
-        "use_ssl": False,
-        "auth_method": "plain",
-        "description": "ProtonMail (nouveau domaine, nécessite Bridge)"
-    },
-
-    # === AUTRES FOURNISSEURS SUISSES POPULAIRES ===
-
-    # Swisscom
-    "swisscom.com": {
-        "imap_host": "mail.swisscom.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Swisscom Mail"
-    },
-
-    # Cablecom (groupe UPC/Sunrise)
-    "cablecom.ch": {
-        "imap_host": "imap.bluewin.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Cablecom (Sunrise group)"
-    },
-
-    # SwissOnline
-    "swissonline.ch": {
-        "imap_host": "mail.swissonline.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "SwissOnline (Suisse)"
-    },
-
-    # GMX Suisse
-    "gmx.ch": {
-        "imap_host": "imap.gmx.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "GMX Suisse"
-    },
-
-    "gmx.com": {
-        "imap_host": "imap.gmx.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "GMX"
-    },
-
-    # Net2000
-    "net2000.ch": {
-        "imap_host": "mail.net2000.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Net2000 (Suisse)"
-    },
-
-    # Hispeed
-    "hispeed.ch": {
-        "imap_host": "mail.hispeed.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Hispeed (Suisse)"
-    },
-
-    # UPC
-    "upc.ch": {
-        "imap_host": "imap.bluewin.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "UPC (groupe Bluewin)"
-    },
-
-    # Domaines personnalisés suisses
-    "bluewin.net": {
-        "imap_host": "imap.bluewin.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Bluewin (domain alternatif)"
-    },
-
-    # NetPlus
-    "netplus.ch": {
-        "imap_host": "mail.netplus.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "NetPlus (Suisse)"
-    },
-
-    # VTXmail (Vaud/Fribourg)
-    "vtxmail.ch": {
-        "imap_host": "mail.vtxmail.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "VTXmail (Suisse)"
-    },
-
-    "vtx.ch": {
-        "imap_host": "mail.vtxmail.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "VTX (Suisse)"
-    },
-
-    # Quickline
-    "quickline.ch": {
-        "imap_host": "mail.quickline.ch",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Quickline (Suisse)"
-    },
-
-    # === FOURNISSEURS INTERNATIONAUX COURANTS ===
-
-    # Yahoo Mail
-    "yahoo.com": {
-        "imap_host": "imap.mail.yahoo.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Yahoo Mail (app password recommandé)"
-    },
-
-    "yahoo.fr": {
-        "imap_host": "imap.mail.yahoo.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Yahoo Mail France"
-    },
-
-    "yahoo.de": {
-        "imap_host": "imap.mail.yahoo.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Yahoo Mail Germany"
-    },
-
-    # AOL
-    "aol.com": {
-        "imap_host": "imap.aol.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "AOL Mail"
-    },
-
-    # Fastmail
-    "fastmail.com": {
-        "imap_host": "imap.fastmail.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "FastMail"
-    },
-
-    # Posteo (allemand, populaire en CH)
-    "posteo.de": {
-        "imap_host": "imap.posteo.de",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Posteo (Allemagne)"
-    },
-
-    # Tutanota (encrypted)
-    "tutanota.com": {
-        "imap_host": "mail.tutanota.com",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Tutanota (inaccessible via IMAP standard)"
-    },
-
-    # Mailbox.org
-    "mailbox.org": {
-        "imap_host": "imap.mailbox.org",
-        "imap_port": 993,
-        "use_ssl": True,
-        "auth_method": "plain",
-        "description": "Mailbox.org (Allemagne)"
-    },
-
-    # === CONFIGURATIONS PERSONNALISÉES/DOMAINES PERSONNELS ===
-    # Ajouter ici les domaines personnalisés avec leurs serveurs spécifiques
+    "bluewin.ch": {"smtp_host": "smtp.bluewin.ch", "smtp_port": 587, "use_tls": True, "description": "Bluewin"},
+    "sunrise.ch": {"smtp_host": "smtp.sunrise.ch", "smtp_port": 587, "use_tls": True, "description": "Sunrise"},
+    "gmail.com": {"smtp_host": "smtp.gmail.com", "smtp_port": 587, "use_tls": True, "description": "Gmail"},
+    "googlemail.com": {"smtp_host": "smtp.gmail.com", "smtp_port": 587, "use_tls": True, "description": "GoogleMail"},
+    "outlook.com": {"smtp_host": "smtp.office365.com", "smtp_port": 587, "use_tls": True, "description": "Outlook"},
+    "outlook.ch": {"smtp_host": "smtp.office365.com", "smtp_port": 587, "use_tls": True, "description": "Outlook CH"},
+    "hotmail.com": {"smtp_host": "smtp.office365.com", "smtp_port": 587, "use_tls": True, "description": "Hotmail"},
+    "swisscom.com": {"smtp_host": "mail.swisscom.com", "smtp_port": 587, "use_tls": True, "description": "Swisscom"},
+    "cablecom.ch": {"smtp_host": "smtp.bluewin.ch", "smtp_port": 587, "use_tls": True, "description": "Cablecom"},
+    "swissonline.ch": {"smtp_host": "mail.swissonline.ch", "smtp_port": 587, "use_tls": True, "description": "SwissOnline"},
+    "gmx.ch": {"smtp_host": "smtp.gmx.com", "smtp_port": 587, "use_tls": True, "description": "GMX CH"},
+    "gmx.com": {"smtp_host": "smtp.gmx.com", "smtp_port": 587, "use_tls": True, "description": "GMX"},
+    "net2000.ch": {"smtp_host": "mail.net2000.ch", "smtp_port": 587, "use_tls": True, "description": "Net2000"},
+    "hispeed.ch": {"smtp_host": "mail.hispeed.ch", "smtp_port": 587, "use_tls": True, "description": "Hispeed"},
+    "upc.ch": {"smtp_host": "smtp.bluewin.ch", "smtp_port": 587, "use_tls": True, "description": "UPC"},
+    "netplus.ch": {"smtp_host": "mail.netplus.ch", "smtp_port": 587, "use_tls": True, "description": "NetPlus"},
+    "vtxmail.ch": {"smtp_host": "mail.vtxmail.ch", "smtp_port": 587, "use_tls": True, "description": "VTXmail"},
+    "vtx.ch": {"smtp_host": "mail.vtxmail.ch", "smtp_port": 587, "use_tls": True, "description": "VTX"},
+    "quickline.ch": {"smtp_host": "mail.quickline.ch", "smtp_port": 587, "use_tls": True, "description": "Quickline"},
+    "yahoo.com": {"smtp_host": "smtp.mail.yahoo.com", "smtp_port": 587, "use_tls": True, "description": "Yahoo"},
+    "aol.com": {"smtp_host": "smtp.aol.com", "smtp_port": 587, "use_tls": True, "description": "AOL"},
+    "fastmail.com": {"smtp_host": "smtp.fastmail.com", "smtp_port": 587, "use_tls": True, "description": "FastMail"},
+    "posteo.de": {"smtp_host": "smtp.posteo.de", "smtp_port": 587, "use_tls": True, "description": "Posteo"},
+    "mailbox.org": {"smtp_host": "smtp.mailbox.org", "smtp_port": 587, "use_tls": True, "description": "Mailbox.org"},
 }
 
-
-# Timeouts (en secondes)
-TIMEOUTS = {
-    "connect": 10,      # Connexion TCP/SSL
-    "login": 15,        # Authentification
-    "total": 30,        # Timeout total par compte
-}
-
-# Logging
-LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
-HIDE_PASSWORDS = True  # Ne jamais afficher les mots de passe dans les logs
-
+TIMEOUTS = {"connect": 10, "login": 15, "total": 30}
+LOG_LEVEL = "INFO"
+HIDE_PASSWORDS = True
 
 def get_provider_config(domain):
-    """
-    Récupère la configuration IMAP pour un domaine donné.
-    Essaie d'abord la config exacte, puis une config générique si le domaine est suisse.
-
-    Args:
-        domain (str): Domaine de l'adresse email (ex: 'bluewin.ch')
-
-    Returns:
-        dict: Configuration du fournisseur ou None
-    """
     domain_lower = domain.lower().strip()
-
-    # Chercher la config exacte
     if domain_lower in PROVIDERS:
         return PROVIDERS[domain_lower]
-
-    # Pour les domaines .ch sans config spécifique, essayer une config générique
     if domain_lower.endswith('.ch'):
-        return {
-            "imap_host": f"mail.{domain_lower}",
-            "imap_port": 993,
-            "use_ssl": True,
-            "auth_method": "plain",
-            "description": f"Domaine suisse personnalisé: {domain_lower}"
-        }
-
+        return {"smtp_host": f"mail.{domain_lower}", "smtp_port": 587, "use_tls": True, "description": f"Domaine: {domain_lower}"}
     return None
 
-
 def list_providers():
-    """Affiche tous les fournisseurs configurés."""
-    print(f"\n{'DOMAINE':<25} {'SERVEUR IMAP':<30} {'PORT':<6} {'SSL':<5}")
+    print(f"\n{'DOMAINE':<25} {'SERVEUR SMTP':<30} {'PORT':<6}")
     print("=" * 70)
     for domain in sorted(PROVIDERS.keys()):
         config = PROVIDERS[domain]
-        print(f"{domain:<25} {config['imap_host']:<30} {config['imap_port']:<6} {'Yes' if config['use_ssl'] else 'No':<5}")
-    print(f"\nTotal: {len(PROVIDERS)} fournisseurs configurés\n")
+        print(f"{domain:<25} {config['smtp_host']:<30} {config['smtp_port']:<6}")
+    print(f"\nTotal: {len(PROVIDERS)} fournisseurs\n")

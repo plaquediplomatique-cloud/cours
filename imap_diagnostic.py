@@ -1,488 +1,155 @@
 #!/usr/bin/env python3
-"""
-IMAP Diagnostic Tool - Test de connectivité et authentification IMAP
-Traitement séquentiel (pas de threads)
-Autorisation requise pour les comptes testés
-"""
+"""Email Credential Validator - SMTP Test (Fast & Reliable)"""
 
-import sys
-import re
-import time
-import imaplib
+import sys, re, time, smtplib, socket
 from pathlib import Path
 from datetime import datetime
 from typing import Tuple, Optional, Dict
-
 from config import get_provider_config, TIMEOUTS, LOG_LEVEL, HIDE_PASSWORDS
 
-
-class IMAPDiagnostic:
-    """Outil de diagnostic IMAP."""
-
-    def __init__(self, input_file: str = "list.txt", output_file: str = "results.txt", proxy_file: str = "proxy.txt"):
+class EmailValidator:
+    def __init__(self, input_file: str = "list.txt", output_file: str = "results.txt"):
         self.input_file = Path(input_file)
         self.output_file = Path(output_file)
-        self.proxy_file = Path(proxy_file)
-        self.proxies = self._load_proxies()
-        self.proxy_index = 0
         self.results = []
         self.start_time = datetime.now()
 
-    def _load_proxies(self) -> list:
-        """Charge les proxies depuis proxy.txt."""
-        proxies = []
-        if not self.proxy_file.exists():
-            return proxies
-
-        try:
-            with open(self.proxy_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        proxies.append(line)
-
-            if proxies:
-                self.log("INFO", f"Chargé {len(proxies)} proxy(ies)")
-        except Exception as e:
-            self.log("WARNING", f"Erreur lors du chargement des proxies: {str(e)}")
-
-        return proxies
-
-    def _get_next_proxy(self) -> Optional[str]:
-        """Retourne le prochain proxy en rotation."""
-        if not self.proxies:
-            return None
-
-        proxy = self.proxies[self.proxy_index % len(self.proxies)]
-        self.proxy_index += 1
-        return proxy
-
-    def log(self, level: str, message: str, hide_sensitive: bool = False):
-        """Affiche un message de log avec timestamp."""
+    def log(self, level: str, message: str):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # Masquer les données sensibles si demandé
-        if hide_sensitive and HIDE_PASSWORDS:
-            message = self._mask_sensitive_data(message)
-
         log_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
         if log_levels.index(level) >= log_levels.index(LOG_LEVEL):
-            print(f"[{timestamp}] [{level}] {message}")
+            msg = message
+            if HIDE_PASSWORDS:
+                msg = re.sub(r'[\w\.\-\+]+@[\w\.\-]+:[\w\.\-\+\!\@\#\$\%\&]+', '***:***', msg)
+            print(f"[{timestamp}] [{level}] {msg}")
 
     @staticmethod
-    def _mask_sensitive_data(text: str) -> str:
-        """Masque les mots de passe et données sensibles."""
-        # Masquer les mots de passe après ':'
-        text = re.sub(r'(:[\w\.\-\+]+@)', ':***@', text)
-        # Masquer les credentials complets
-        text = re.sub(r'[\w\.\-\+]+@[\w\.\-]+:[\w\.\-\+\!\@\#\$\%\&]+', '***:***', text)
-        return text
-
-    @staticmethod
-    @staticmethod
-    def _generate_password_variants(password: str) -> list:
-        """Génère variantes de cas du password: original, minuscules, majuscules."""
-        variants = [password]
-
-        # Ajouter la variante en minuscules
-        if password.lower() not in variants:
-            variants.append(password.lower())
-
-        # Ajouter la variante en majuscules
-        if password.upper() not in variants:
-            variants.append(password.upper())
-
-        # Ajouter capitalize (première lettre majuscule, reste minuscule)
-        if password.capitalize() not in variants:
-            variants.append(password.capitalize())
-
-        return variants
+    def _password_variants(pwd: str) -> list:
+        """Generate password case variants."""
+        return list(dict.fromkeys([pwd, pwd.lower(), pwd.upper(), pwd.capitalize()]))
 
     @staticmethod
     def validate_email(email: str) -> Tuple[bool, Optional[str]]:
-        """
-        Valide une adresse email et retourne (valide, domaine).
-        Pattern simple mais suffisant pour la plupart des cas.
-        """
-        pattern = r'^[a-zA-Z0-9._\-+]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-
-        if not re.match(pattern, email):
+        if not re.match(r'^[a-zA-Z0-9._\-+]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
             return False, None
+        return True, email.split('@')[1].lower().strip()
 
-        domain = email.split('@')[1].lower().strip()
-        return True, domain
-
-    def test_imap_connection(self, email: str, password: str,
-                            host: str, port: int, use_ssl: bool) -> str:
-        """Teste connexion IMAP et teste variantes du password."""
-        start = time.time()
+    def test_smtp(self, email: str, password: str, host: str, port: int) -> str:
+        """Test SMTP credentials. Returns VALID/INVALID/ERROR."""
         try:
-            # Déterminer le type de connexion
-            if use_ssl:
-                imap = imaplib.IMAP4_SSL(
-                    host,
-                    port,
-                    timeout=TIMEOUTS["connect"]
-                )
-            else:
-                imap = imaplib.IMAP4(
-                    host,
-                    port,
-                    timeout=TIMEOUTS["connect"]
-                )
-
-            self.log("DEBUG", f"Connexion établie à {host}:{port}")
-
+            smtp = smtplib.SMTP(host, port, timeout=TIMEOUTS["connect"])
             try:
-                # Essayer les variantes du mot de passe
-                password_variants = self._generate_password_variants(password)
-                auth_success = False
-                last_error = None
-
-                for variant_idx, pwd_variant in enumerate(password_variants, 1):
+                smtp.starttls(timeout=TIMEOUTS["connect"])
+                for pwd in self._password_variants(password):
                     try:
-                        self.log("DEBUG", f"  Tentative {variant_idx}/{len(password_variants)}")
-                        imap.login(email, pwd_variant)
-                        auth_success = True
-                        break
-                    except imaplib.IMAP4.error as e:
-                        last_error = str(e)
-                        is_auth_error = ("authentication failed" in last_error.lower() or \
-                                        "login failed" in last_error.lower() or \
-                                        "invalid credentials" in last_error.lower() or \
-                                        "[authenticationfailed]" in last_error.lower())
-
-                        if is_auth_error:
-                            self.log("DEBUG", f"  Variante {variant_idx} échouée")
-                            continue
-                        else:
-                            self.log("ERROR",
-                                f"? ERROR - {email} - Erreur IMAP: {self._mask_sensitive_data(last_error)}")
-                            return "ERROR"
-
-                if auth_success:
-                    elapsed = time.time() - start
-                    self.log("INFO",
-                        f"✓ VALID - {email} - Authentification réussie ({elapsed:.2f}s)")
-
-                    # Fermeture propre
-                    try:
-                        imap.close()
-                    except:
-                        pass
-                    try:
-                        imap.logout()
-                    except:
-                        pass
-
-                    return "VALID"
-                else:
-                    self.log("WARNING",
-                        f"✗ INVALID - {email} - Authentification refusée (toutes variantes)")
-                    return "INVALID"
-
-            except imaplib.IMAP4.error as e:
-                error_msg = str(e)
-                self.log("ERROR",
-                    f"? ERROR - {email} - Erreur IMAP: {self._mask_sensitive_data(error_msg)}")
-                return "ERROR"
-
+                        smtp.login(email, pwd)
+                        elapsed = (datetime.now() - self.start_time).total_seconds()
+                        self.log("INFO", f"✓ VALID - {email}")
+                        return "VALID"
+                    except smtplib.SMTPAuthenticationError:
+                        continue
+                    except smtplib.SMTPException:
+                        continue
+                self.log("WARNING", f"✗ INVALID - {email}")
+                return "INVALID"
             finally:
-                try:
-                    imap.close()
-                except:
-                    pass
-                try:
-                    imap.logout()
-                except:
-                    pass
-
-        except imaplib.IMAP4.error as e:
-            self.log("ERROR",
-                f"? ERROR - {email} - Erreur de connexion IMAP: {str(e)}")
-            return "ERROR"
-
-        except ConnectionRefusedError:
-            self.log("ERROR",
-                f"? ERROR - {email} - Connexion refusée ({host}:{port})")
-            return "ERROR"
-
-        except ConnectionAbortedError:
-            self.log("ERROR",
-                f"? ERROR - {email} - Connexion interrompue ({host}:{port})")
-            return "ERROR"
-
-        except TimeoutError:
-            self.log("ERROR",
-                f"? ERROR - {email} - Timeout lors de la connexion à {host}:{port}")
-            return "ERROR"
-
-        except socket.timeout:
-            self.log("ERROR",
-                f"? ERROR - {email} - Timeout socket")
-            return "ERROR"
-
-        except ssl.SSLError as e:
-            self.log("ERROR",
-                f"? ERROR - {email} - Erreur SSL: {str(e)}")
-            return "ERROR"
-
+                try: smtp.quit()
+                except: pass
         except Exception as e:
-            elapsed = time.time() - start
-            self.log("ERROR",
-                f"? ERROR - {email} - Exception non gérée: {type(e).__name__}: {str(e)}")
+            self.log("ERROR", f"? ERROR - {email} - {type(e).__name__}")
             return "ERROR"
 
-    def parse_credentials(self, line: str) -> Optional[Tuple[str, str]]:
-        """
-        Parse une ligne 'email:password'.
-        Retourne (email, password) ou None si format invalide.
-        """
+    def parse_line(self, line: str) -> Optional[Tuple[str, str]]:
         line = line.strip()
-
-        # Ignorer les lignes vides et commentaires
-        if not line or line.startswith('#'):
+        if not line or line.startswith('#') or ':' not in line:
             return None
-
-        # Chercher la dernière occurrence de ':' (le password peut contenir des ':')
-        if ':' not in line:
-            self.log("WARNING", f"Format invalide (pas de ':'): {line}")
-            return None
-
-        parts = line.rsplit(':', 1)  # Split from the right, max 1 split
-        if len(parts) != 2:
-            self.log("WARNING", f"Format invalide: {line}")
-            return None
-
-        email, password = parts
-        email = email.strip()
-        password = password.strip()
-
-        if not email or not password:
-            self.log("WARNING", f"Email ou mot de passe vide dans: {line}")
-            return None
-
-        return email, password
-
-    def process_account(self, email: str, password: str) -> Dict[str, str]:
-        """Traite un compte: validation -> lookup fournisseur -> test IMAP."""
-
-        # Validation email
-        is_valid, domain = self.validate_email(email)
-        if not is_valid:
-            self.log("WARNING", f"Email invalide: {email}")
-            return {
-                "email": email,
-                "status": "ERROR",
-                "reason": "Email format invalid"
-            }
-
-        self.log("INFO", f"\nTraitement: {email}")
-
-        # Lookup du fournisseur
-        provider_config = get_provider_config(domain)
-
-        if not provider_config:
-            self.log("WARNING",
-                f"Fournisseur non configuré pour le domaine: {domain}")
-            return {
-                "email": email,
-                "domain": domain,
-                "status": "ERROR",
-                "reason": "Provider not configured"
-            }
-
-        self.log("INFO",
-            f"  Fournisseur: {provider_config['description']}")
-        self.log("DEBUG",
-            f"  Serveur: {provider_config['imap_host']}:{provider_config['imap_port']} "
-            f"(SSL: {provider_config['use_ssl']})")
-
-        # Test IMAP
-        result = self.test_imap_connection(
-            email,
-            password,
-            provider_config['imap_host'],
-            provider_config['imap_port'],
-            provider_config['use_ssl']
-        )
-
-        return {
-            "email": email,
-            "domain": domain,
-            "provider": provider_config['description'],
-            "status": result,
-            "host": provider_config['imap_host'],
-            "port": provider_config['imap_port']
-        }
+        parts = line.rsplit(':', 1)
+        return tuple(p.strip() for p in parts) if len(parts) == 2 and all(parts) else None
 
     def run(self):
-        """Exécute le diagnostic complet."""
-
+        """Execute validation."""
         self.log("INFO", "=" * 70)
-        self.log("INFO", "IMAP Diagnostic Tool - Démarrage")
+        self.log("INFO", "Email Credential Validator - SMTP Test")
         self.log("INFO", "=" * 70)
 
-        # Vérifier le fichier d'entrée
         if not self.input_file.exists():
-            self.log("ERROR", f"Fichier d'entrée introuvable: {self.input_file}")
+            self.log("ERROR", f"File not found: {self.input_file}")
             return False
 
-        # Lire les credentials
-        credentials = []
-        with open(self.input_file, 'r', encoding='utf-8') as f:
-            for line_num, line in enumerate(f, 1):
-                parsed = self.parse_credentials(line)
-                if parsed:
-                    credentials.append(parsed)
+        creds = [c for c in (self.parse_line(l) for l in open(self.input_file)) if c]
 
-        if not credentials:
-            self.log("WARNING", "Aucun credential valide trouvé")
+        if not creds:
+            self.log("WARNING", "No valid credentials found")
             return False
 
-        self.log("INFO", f"Trouvé {len(credentials)} compte(s) à tester")
+        self.log("INFO", f"Found {len(creds)} account(s) to test\n")
 
-        # Traiter chaque compte séquentiellement
-        for idx, (email, password) in enumerate(credentials, 1):
-            self.log("INFO", f"\n[{idx}/{len(credentials)}] Test en cours...")
-            result = self.process_account(email, password)
-            self.results.append(result)
+        for idx, (email, pwd) in enumerate(creds, 1):
+            self.log("INFO", f"[{idx}/{len(creds)}] Testing...")
+            is_valid, domain = self.validate_email(email)
 
-            # Petit délai pour éviter les rate limits (optionnel)
-            if idx < len(credentials):
-                time.sleep(0.5)
+            if not is_valid:
+                self.results.append({"email": email, "status": "ERROR"})
+                continue
 
-        # Écrire les résultats
+            cfg = get_provider_config(domain)
+            if not cfg:
+                self.results.append({"email": email, "domain": domain, "status": "ERROR"})
+                continue
+
+            self.log("INFO", f"  Domain: {domain} -> {cfg['description']}")
+            status = self.test_smtp(email, pwd, cfg['smtp_host'], cfg['smtp_port'])
+            self.results.append({"email": email, "domain": domain, "status": status, "provider": cfg['description']})
+            time.sleep(0.5)
+
         self.write_results()
-
-        # Résumé
-        self.print_summary()
-
         return True
 
     def write_results(self):
-        """Écrit les résultats dans le fichier de sortie."""
+        valid = [r for r in self.results if r['status'] == 'VALID']
+        invalid = [r for r in self.results if r['status'] == 'INVALID']
+        error = [r for r in self.results if r['status'] == 'ERROR']
 
-        with open(self.output_file, 'w', encoding='utf-8') as f:
+        with open(self.output_file, 'w') as f:
             f.write("=" * 70 + "\n")
-            f.write("IMAP Diagnostic Tool - Résultats\n")
-            f.write(f"Généré: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("Email Credential Validator Results\n")
+            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write("=" * 70 + "\n\n")
 
-            # Tri par statut (VALID d'abord)
-            valid = [r for r in self.results if r['status'] == 'VALID']
-            invalid = [r for r in self.results if r['status'] == 'INVALID']
-            error = [r for r in self.results if r['status'] == 'ERROR']
-
-            # VALID
             if valid:
-                f.write(f"\n✓ VALID ({len(valid)} compte(s)):\n")
-                f.write("-" * 70 + "\n")
-                for result in valid:
-                    f.write(f"  {result['email']}\n")
-                    f.write(f"    Domaine: {result.get('domain', 'N/A')}\n")
-                    f.write(f"    Fournisseur: {result.get('provider', 'N/A')}\n\n")
+                f.write(f"✓ VALID ({len(valid)}):\n")
+                for r in valid:
+                    f.write(f"  {r['email']}\n")
 
-            # INVALID
             if invalid:
-                f.write(f"\n✗ INVALID ({len(invalid)} compte(s)):\n")
-                f.write("-" * 70 + "\n")
-                for result in invalid:
-                    f.write(f"  {result['email']}\n")
-                    f.write(f"    Raison: {result.get('reason', 'Authentication failed')}\n\n")
+                f.write(f"\n✗ INVALID ({len(invalid)}):\n")
+                for r in invalid:
+                    f.write(f"  {r['email']}\n")
 
-            # ERROR
             if error:
-                f.write(f"\n? ERROR ({len(error)} compte(s)):\n")
-                f.write("-" * 70 + "\n")
-                for result in error:
-                    f.write(f"  {result['email']}\n")
-                    f.write(f"    Raison: {result.get('reason', 'Unknown error')}\n")
-                    f.write(f"    Serveur: {result.get('host', 'N/A')}:{result.get('port', 'N/A')}\n\n")
+                f.write(f"\n? ERROR ({len(error)}):\n")
+                for r in error:
+                    f.write(f"  {r['email']}\n")
 
-            # Statistiques
-            f.write("\n" + "=" * 70 + "\n")
-            f.write("STATISTIQUES\n")
-            f.write("=" * 70 + "\n")
-            f.write(f"Total: {len(self.results)} compte(s)\n")
-            f.write(f"  ✓ Valid: {len(valid)}\n")
-            f.write(f"  ✗ Invalid: {len(invalid)}\n")
-            f.write(f"  ? Error: {len(error)}\n")
+            elapsed = (datetime.now() - self.start_time).total_seconds()
+            f.write(f"\n{'='*70}\n")
+            f.write(f"Total: {len(self.results)} | Valid: {len(valid)} | Invalid: {len(invalid)} | Error: {len(error)}\n")
+            f.write(f"Duration: {elapsed:.2f}s\n")
 
-            elapsed = datetime.now() - self.start_time
-            f.write(f"\nDurée: {elapsed.total_seconds():.2f}s\n")
-
-        self.log("INFO", f"Résultats écrits dans: {self.output_file}")
-
-    def print_summary(self):
-        """Affiche un résumé des résultats."""
-        valid = len([r for r in self.results if r['status'] == 'VALID'])
-        invalid = len([r for r in self.results if r['status'] == 'INVALID'])
-        error = len([r for r in self.results if r['status'] == 'ERROR'])
-
-        elapsed = datetime.now() - self.start_time
-
-        print("\n" + "=" * 70)
-        print("RÉSUMÉ")
-        print("=" * 70)
-        print(f"Total: {len(self.results)} compte(s)")
-        print(f"  ✓ Valid:  {valid}")
-        print(f"  ✗ Invalid: {invalid}")
-        print(f"  ? Error:   {error}")
-        print(f"\nDurée totale: {elapsed.total_seconds():.2f}s")
-        print("=" * 70)
-
-
-# Import socket et ssl après la classe pour la gestion des exceptions
-import socket
-import ssl
-
+        self.log("INFO", f"Results written to: {self.output_file}")
+        print(f"\n{'='*70}\nSUMMARY: {len(valid)} VALID | {len(invalid)} INVALID | {len(error)} ERROR\n{'='*70}")
 
 def main():
-    """Fonction principale."""
-
-    # Parser les arguments
-    input_file = sys.argv[1] if len(sys.argv) > 1 else "list.txt"
-    output_file = sys.argv[2] if len(sys.argv) > 2 else "results.txt"
-
-    # Afficher les options disponibles
-    if "--list-providers" in sys.argv or "-l" in sys.argv:
+    if "-l" in sys.argv or "--list" in sys.argv:
         from config import list_providers
         list_providers()
         return
 
-    if "--help" in sys.argv or "-h" in sys.argv:
-        print("""
-IMAP Diagnostic Tool - Utilisation
-
-Syntaxe:
-    python imap_diagnostic.py [fichier_entrée] [fichier_sortie]
-
-Options:
-    -l, --list-providers    Affiche tous les fournisseurs configurés
-    -h, --help             Affiche cette aide
-
-Fichiers:
-    Entrée:  Format 'email:password' (défaut: list.txt)
-    Sortie:  Résultats du diagnostic (défaut: results.txt)
-
-Exemple:
-    python imap_diagnostic.py comptes.txt resultats.txt
-
-Notes:
-    - Les comptes doivent être autorisés pour être testés
-    - Les mots de passe ne sont pas stockés
-    - Le traitement est séquentiel (pas de parallélisation)
-    - Les logs détaillés sont affichés en temps réel
-        """)
-        return
-
-    # Exécuter le diagnostic
-    tool = IMAPDiagnostic(input_file, output_file)
-    success = tool.run()
-
-    sys.exit(0 if success else 1)
-
+    validator = EmailValidator(
+        sys.argv[1] if len(sys.argv) > 1 else "list.txt",
+        sys.argv[2] if len(sys.argv) > 2 else "results.txt"
+    )
+    validator.run()
 
 if __name__ == "__main__":
     main()
