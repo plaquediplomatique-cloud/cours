@@ -103,6 +103,68 @@ PROVIDERS = {
         "description": "Cablecom (Sunrise group)"
     },
 
+    # SwissOnline
+    "swissonline.ch": {
+        "imap_host": "mail.swissonline.ch",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "SwissOnline (Suisse)"
+    },
+
+    # GMX Suisse
+    "gmx.ch": {
+        "imap_host": "imap.gmx.com",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "GMX Suisse"
+    },
+
+    "gmx.com": {
+        "imap_host": "imap.gmx.com",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "GMX"
+    },
+
+    # Net2000
+    "net2000.ch": {
+        "imap_host": "mail.net2000.ch",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "Net2000 (Suisse)"
+    },
+
+    # Hispeed
+    "hispeed.ch": {
+        "imap_host": "mail.hispeed.ch",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "Hispeed (Suisse)"
+    },
+
+    # UPC
+    "upc.ch": {
+        "imap_host": "imap.bluewin.ch",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "UPC (groupe Bluewin)"
+    },
+
+    # Domaines personnalisés suisses
+    "bluewin.net": {
+        "imap_host": "imap.bluewin.ch",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "Bluewin (domain alternatif)"
+    },
+
     # === FOURNISSEURS INTERNATIONAUX COURANTS ===
 
     # Yahoo Mail
@@ -195,6 +257,7 @@ HIDE_PASSWORDS = True  # Ne jamais afficher les mots de passe dans les logs
 def get_provider_config(domain):
     """
     Récupère la configuration IMAP pour un domaine donné.
+    Essaie d'abord la config exacte, puis une config générique si le domaine est suisse.
 
     Args:
         domain (str): Domaine de l'adresse email (ex: 'bluewin.ch')
@@ -203,7 +266,22 @@ def get_provider_config(domain):
         dict: Configuration du fournisseur ou None
     """
     domain_lower = domain.lower().strip()
-    return PROVIDERS.get(domain_lower)
+
+    # Chercher la config exacte
+    if domain_lower in PROVIDERS:
+        return PROVIDERS[domain_lower]
+
+    # Pour les domaines .ch sans config spécifique, essayer une config générique
+    if domain_lower.endswith('.ch'):
+        return {
+            "imap_host": f"mail.{domain_lower}",
+            "imap_port": 993,
+            "use_ssl": True,
+            "auth_method": "plain",
+            "description": f"Domaine suisse personnalisé: {domain_lower}"
+        }
+
+    return None
 
 
 def list_providers():
