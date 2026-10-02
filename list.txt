@@ -1,0 +1,8 @@
+# Format: email:password
+# Les comptes doivent être autorisés pour être testés
+# Les lignes vides et commentaires (commençant par #) sont ignorées
+
+# Exemples (à remplacer par vos comptes autorisés):
+# user@bluewin.ch:password123
+# test@gmail.com:app-password-xyz
+# admin@swisscom.com:secure-pass
