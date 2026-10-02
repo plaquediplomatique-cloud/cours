@@ -165,6 +165,41 @@ PROVIDERS = {
         "description": "Bluewin (domain alternatif)"
     },
 
+    # NetPlus
+    "netplus.ch": {
+        "imap_host": "mail.netplus.ch",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "NetPlus (Suisse)"
+    },
+
+    # VTXmail (Vaud/Fribourg)
+    "vtxmail.ch": {
+        "imap_host": "mail.vtxmail.ch",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "VTXmail (Suisse)"
+    },
+
+    "vtx.ch": {
+        "imap_host": "mail.vtxmail.ch",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "VTX (Suisse)"
+    },
+
+    # Quickline
+    "quickline.ch": {
+        "imap_host": "mail.quickline.ch",
+        "imap_port": 993,
+        "use_ssl": True,
+        "auth_method": "plain",
+        "description": "Quickline (Suisse)"
+    },
+
     # === FOURNISSEURS INTERNATIONAUX COURANTS ===
 
     # Yahoo Mail
