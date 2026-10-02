@@ -47,6 +47,28 @@ class IMAPDiagnostic:
         return text
 
     @staticmethod
+    def _generate_password_variants(password: str) -> list:
+        """
+        Génère les variantes de cas d'un mot de passe.
+        Exemples: "Exemple1" → ["Exemple1", "exemple1", "EXEMPLE1"]
+        """
+        variants = [password]
+
+        # Ajouter la variante en minuscules
+        if password.lower() not in variants:
+            variants.append(password.lower())
+
+        # Ajouter la variante en majuscules
+        if password.upper() not in variants:
+            variants.append(password.upper())
+
+        # Ajouter capitalize (première lettre majuscule, reste minuscule)
+        if password.capitalize() not in variants:
+            variants.append(password.capitalize())
+
+        return variants
+
+    @staticmethod
     def validate_email(email: str) -> Tuple[bool, Optional[str]]:
         """
         Valide une adresse email et retourne (valide, domaine).
@@ -86,41 +108,58 @@ class IMAPDiagnostic:
             self.log("DEBUG", f"Connexion établie à {host}:{port}")
 
             try:
-                # Tentative d'authentification avec timeout
-                imap.login(email, password)
+                # Essayer les variantes du mot de passe
+                password_variants = self._generate_password_variants(password)
+                auth_success = False
+                last_error = None
 
-                elapsed = time.time() - start
-                self.log("INFO",
-                    f"✓ VALID - {email} - Authentification réussie ({elapsed:.2f}s)")
+                for variant_idx, pwd_variant in enumerate(password_variants, 1):
+                    try:
+                        self.log("DEBUG", f"  Tentative {variant_idx}/{len(password_variants)}")
+                        imap.login(email, pwd_variant)
+                        auth_success = True
+                        break
+                    except imaplib.IMAP4.error as e:
+                        last_error = str(e)
+                        is_auth_error = ("authentication failed" in last_error.lower() or \
+                                        "login failed" in last_error.lower() or \
+                                        "invalid credentials" in last_error.lower() or \
+                                        "[authenticationfailed]" in last_error.lower())
 
-                # Fermeture propre
-                try:
-                    imap.close()
-                except:
-                    pass
-                try:
-                    imap.logout()
-                except:
-                    pass
+                        if is_auth_error:
+                            self.log("DEBUG", f"  Variante {variant_idx} échouée")
+                            continue
+                        else:
+                            self.log("ERROR",
+                                f"? ERROR - {email} - Erreur IMAP: {self._mask_sensitive_data(last_error)}")
+                            return "ERROR"
 
-                return "VALID"
+                if auth_success:
+                    elapsed = time.time() - start
+                    self.log("INFO",
+                        f"✓ VALID - {email} - Authentification réussie ({elapsed:.2f}s)")
+
+                    # Fermeture propre
+                    try:
+                        imap.close()
+                    except:
+                        pass
+                    try:
+                        imap.logout()
+                    except:
+                        pass
+
+                    return "VALID"
+                else:
+                    self.log("WARNING",
+                        f"✗ INVALID - {email} - Authentification refusée (toutes variantes)")
+                    return "INVALID"
 
             except imaplib.IMAP4.error as e:
                 error_msg = str(e)
-
-                # Distinguer "mauvais credentials" d'autres erreurs IMAP
-                if "authentication failed" in error_msg.lower() or \
-                   "login failed" in error_msg.lower() or \
-                   "invalid credentials" in error_msg.lower() or \
-                   "[authenticationfailed]" in error_msg.lower():
-
-                    self.log("WARNING",
-                        f"✗ INVALID - {email} - Authentification refusée")
-                    return "INVALID"
-                else:
-                    self.log("ERROR",
-                        f"? ERROR - {email} - Erreur IMAP: {self._mask_sensitive_data(error_msg)}")
-                    return "ERROR"
+                self.log("ERROR",
+                    f"? ERROR - {email} - Erreur IMAP: {self._mask_sensitive_data(error_msg)}")
+                return "ERROR"
 
             finally:
                 try:
